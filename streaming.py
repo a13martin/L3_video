@@ -1,21 +1,21 @@
 import os
 import subprocess
+import random
+import string
 
 
-def resize(path):
-    """
-    :param path: the path of the video file
-    :return:
-    calls ffmpeg to re-sclae the video to 3 different formats
-    """
-    if os.path.exists("v1.mp4") and os.path.exists("v2.mp4") and os.path.exists("v3.mp4"):
-        os.remove("v1.mp4")
-        os.remove("v2.mp4")
-        os.remove("v3.mp4")
+def get_key():
+    source = string.ascii_letters + string.digits
+    result_str = ''.join((random.choice(source) for i in range(16)))
+    print("The KEY is: " + result_str)
+    return result_str
 
-    subprocess.call("ffmpeg -i bbb.mp4 -filter:v scale=1280:720 -c:a copy v1.mp4")
-    subprocess.call("ffmpeg -i bbb.mp4 -filter:v scale=768:480 -c:a copy v2.mp4")
-    subprocess.call("ffmpeg -i bbb.mp4 -filter:v scale=320:240 -c:a copy v3.mp4")
+
+def get_id():
+    source = string.ascii_letters + string.digits
+    result_str = ''.join((random.choice(source) for i in range(32)))
+    print("The ID is: " + result_str)
+    return result_str
 
 
 def fragment(path):
@@ -32,9 +32,7 @@ class Streaming:
         self.vid = vid
 
     def hls_transport(self):
-        # resize(self.vid)
         out = self.vid.replace(".mp4", "")
-        # subprocess.call(f"ffmpeg -i {self.vid} -c:v h264 -flags +cgop -g 30 -hls_time 6 {out}.m3u8")
         subprocess.call(f'ffmpeg -i {self.vid} -filter_complex "[0:v]split=3[v1][v2][v3]; [v1]copy[v1out]; '
                         f'[v2]scale=w=1280:h=720[v2out]; [v3]scale=w=640:h=360[v3out]" -map [v1out] -c:v:0 '
                         f'libx264 -x264-params "nal-hrd=cbr:force-cfr=1" -b:v:0 5M -maxrate:v:0 5M -minrate:v:0 5M '
@@ -57,9 +55,9 @@ class Streaming:
         # First we need to fragment the video
         fragment(self.vid)
         ipt = self.vid.replace(".mp4", "")
-        ipt += "-fragmented.mp4"
-        subprocess.call(f"mp4dash --marlin --encryption-key=121a0fca0f1b475b8910297fa8e0a07e"
-                        f":a0a1a2a3a4a5a6a7a8a9aaabacadaeaf {ipt}", shell=True)
+        ipt += "-fragmented"
+        subprocess.call(f"mp4encrypt --method MPEG-CENC --key 1:{get_id()}:{get_key()} {ipt}.mp4 {ipt}_encrypted.mp4")
+        subprocess.call(f"mp4dash {ipt}_encrypted.mp4", shell=True)
 
     def stream(self):
         subprocess.call(f"ffmpeg -re -i {self.vid} -c:v libx264 -b:v 2M -c:a copy -strict -2 -flags +global_header "
@@ -70,5 +68,13 @@ class Streaming:
 if __name__ == '__main__':
     video = 'bbb.mp4'
     stream = Streaming(video)
-    stream.hls_transport()
-    # stream.mpd()
+    option = int(input("Select 1 for HLS, 2 for MPD and 3 for streaming the bbb.mp4 file: "))
+    match option:
+        case 1:
+            stream.hls_transport()
+        case 2:
+            stream.mpd()
+        case 3:
+            stream.stream()
+        case other:
+            print("Invalid option")
