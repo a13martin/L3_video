@@ -34,7 +34,7 @@ class Streaming:
     def hls_transport(self):
         # resize(self.vid)
         out = self.vid.replace(".mp4", "")
-        #subprocess.call(f"ffmpeg -i {self.vid} -c:v h264 -flags +cgop -g 30 -hls_time 6 {out}.m3u8")
+        # subprocess.call(f"ffmpeg -i {self.vid} -c:v h264 -flags +cgop -g 30 -hls_time 6 {out}.m3u8")
         subprocess.call(f'ffmpeg -i {self.vid} -filter_complex "[0:v]split=3[v1][v2][v3]; [v1]copy[v1out]; '
                         f'[v2]scale=w=1280:h=720[v2out]; [v3]scale=w=640:h=360[v3out]" -map [v1out] -c:v:0 '
                         f'libx264 -x264-params "nal-hrd=cbr:force-cfr=1" -b:v:0 5M -maxrate:v:0 5M -minrate:v:0 5M '
@@ -48,11 +48,9 @@ class Streaming:
                         f'-hls_segment_type mpegts  -hls_segment_filename stream_%v/data%02d.ts  -master_pl_name '
                         f'master_{out}.m3u8  -var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2" stream_{out}_%v.m3u8')
 
-        """
-        Code copied from the internet:
-        Above we are converting using variables the bbb video to 1080 (copy), 720 and 360, then we trasncode them into
-        different bitrates, and finnally we create a hls playlist, containing the master file, and other 3 for the different
-        scales, and its corresponding segments of 6 seconds
+        """Code copied from the internet: Above we are converting using variables the bbb video to 1080 (copy), 
+        720 and 360, then we trasncode them into different bitrates, and finnally we create a hls playlist, 
+        containing the master file, and other 3 for the different scales, and its corresponding segments of 6 seconds 
         """
 
     def mpd(self):
@@ -60,12 +58,17 @@ class Streaming:
         fragment(self.vid)
         ipt = self.vid.replace(".mp4", "")
         ipt += "-fragmented.mp4"
-        print(ipt)
-        subprocess.call(f"mp4dash --marlin --encryption-key=121a0fca0f1b475b8910297fa8e0a07e:a0a1a2a3a4a5a6a7a8a9aaabacadaeaf {ipt}", shell=True)
+        subprocess.call(f"mp4dash --marlin --encryption-key=121a0fca0f1b475b8910297fa8e0a07e"
+                        f":a0a1a2a3a4a5a6a7a8a9aaabacadaeaf {ipt}", shell=True)
+
+    def stream(self):
+        subprocess.call(f"ffmpeg -re -i {self.vid} -c:v libx264 -b:v 2M -c:a copy -strict -2 -flags +global_header "
+                        f"-bsf:a "
+                        "aac_adtstoasc -bufsize 2100k -f flv rtmp://a.rtmp.youtube.com/live2/f9kp-d05m-jmfe-z6zv-6pgm")
 
 
 if __name__ == '__main__':
     video = 'bbb.mp4'
     stream = Streaming(video)
     stream.hls_transport()
-    #stream.mpd()
+    # stream.mpd()
